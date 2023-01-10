@@ -12,7 +12,7 @@
 template <typename T>
 void process(const T&& digit) 
 {
-    T flag = std::numeric_limits<T>::max() / 2 + 1;
+    T flag = std::numeric_limits<T>::max() / 2 + 1;//получение старшего бита
 
     while (flag)
     {
@@ -59,9 +59,10 @@ void RemoveDups(char* str)
             position++;
         }
     }
+    //для каждой позиции выбирается временной элемент и сравнивается с последующими
     str[position] = tmp;
     position++;
-    str[position] = '\0';
+    str[position] = '\0';//"обрезание" исходной строки
 };
 
 ///////////////////////////////////////////////////////////////3.
@@ -83,33 +84,40 @@ class List
 public:
     void Serialize(FILE* file)
     {
-        if (fwrite(&(typeid(Type).name()), sizeof(size_t), 1, file));
-        else throw std::exception("Cant write infoType in node");
+        const size_t typeSize = sizeof(Type);
+        if (fwrite(&(typeSize), sizeof(size_t), 1, file));
+        else throw std::exception{ "Cant write size of type." };
 
         if(fwrite(&(count), sizeof(size_t), 1, file));
-        else throw std::exception("Cant write size in node");
+        else throw std::exception{ "Cant write size of nodes." };
 
         for (ListNode<Type>* that = head; that != nullptr; that = that->next)
         {
             if (fwrite(&(that->data), sizeof(Type), 1, file));
-            else throw std::exception("Cant write data in node");
+            else throw std::exception{ "Cant write data in node." };
         }
         for (ListNode<Type>* that = head; that != nullptr; that = that->next)
         {
             if (fwrite(&(that->rand), sizeof(ListNode<Type>*), 1, file));
-            else throw std::exception("Cant write rand in node");
+            else throw std::exception{ "Cant write rand in node." };
         }
     }; // сохранение списка в файл, файл открыт с помощью `fopen(path, "wb")`
     //-------------------------------------
     void Deserialize(FILE* file) 
     {
-        /*char* typeInfo;
-        fread(&typeInfo, sizeof(char*), 1, file);*///write typeInfo
-        size_t sizeList;
+        size_t sizeType = 0;
+
+        fread(&sizeType, sizeof(size_t), 1, file);
+        if (sizeType != sizeof(Type))
+            throw std::exception{ "Size of types diferrent." };
+        //проверка, чтобы в шаблоне стояли типы одинакового размера
+
+        size_t sizeList = 0;
         fread(&sizeList, sizeof(size_t), 1, file);
         
         if (sizeList == 0)
-            return;
+            throw std::exception{"Zero size."};
+
 
         Type node;
         ListNode<Type>* nodeptr;
@@ -121,19 +129,21 @@ public:
                 nodeptr = new ListNode<Type>(node);
                 append(nodeptr);
             }
-        }
+
+        }//запись узлов
 
         ListNode<Type>* pos;
         nodeptr = head;
 
         for (size_t i = 0; i < sizeList; i++)
         {
+            int test = sizeof(ListNode<Type>*);
             if (fread(&pos, sizeof(ListNode<Type>*), 1, file))
             {
                 nodeptr->rand = pos;
                 nodeptr = nodeptr->next;
             }
-        }
+        }//запись рандомных членов
 
      }; // восстановление списка из файла, файл открыт с помощью `fopen(path, "rb")`
     //-------------------------------------
@@ -193,6 +203,9 @@ public:
     //-------------------------------------
     void clear()
     {
+        if (head == nullptr)
+            return;
+
         ListNode<Type>* tmp = head;
         while (head->next != nullptr)
         {
@@ -271,25 +284,38 @@ int main()
     const char* path = "./Test.bin";
     FILE* fin = fopen(path, "wb");
     List<std::string> l;
-    l.append("1");
-    l.append("2");
-    l.append("3");
-    l.append("40");
-    l.append("5");
-    l.append("6");
+    l.append("Hello");
+    l.append(", ");
+    l.append("my ");
+    l.append("name ");
+    l.append("is ");
+    l.append("Vladislav");
 
     std::cout << "Serialize:";
     l.showList();
-    l.Serialize(fin);
-    
-    fclose(fin);
-    std::cout << "\n";
-    FILE* fout = fopen(path, "rb");
-    List<int> l1;
 
-    l1.Deserialize(fout);
-    std::cout << "Deserialize:";
-    l1.showList();
-    fclose(fout);
+    try
+    {
+
+        l.Serialize(fin);
+    
+        fclose(fin);
+        std::cout << "\n";
+        FILE* fout = fopen(path, "rb");
+        List<std::string> l1;
+
+        l1.Deserialize(fout);
+        std::cout << "Deserialize:";
+        l1.showList();
+
+        fclose(fout);
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << e.what()<<"\n";
+    }
+
 }
 
+////Уразлин Владислав Сергеевич
+//10.01.2023, 6 часов
