@@ -6,6 +6,9 @@
 #include <type_traits>
 #include <iostream>
 #include <io.h>
+#include <map>
+#include <unordered_map>
+#include <string_view>
 #include <limits>
 #define _CRT_NONSTDC_NO_WARNINGS
 ///////////////////////////////////////////////////////////////1.
@@ -66,51 +69,53 @@ void RemoveDups(char* str)
 };
 
 ///////////////////////////////////////////////////////////////3.
-
-template<typename Type>//Для произвольного типа хранения данных
 struct ListNode
 {
-    ListNode(Type value) : data(value) {}
+    ListNode(std::string value) : data(value) {}
     ListNode() = default;
-    ListNode<Type>* prev = nullptr; // указатель на предыдущий элемент списка, либо `nullptr` в случае начала списка
-    ListNode<Type>* next = nullptr;
-    ListNode<Type>* rand = nullptr; // указатель на произвольный элемент данного списка, либо `nullptr`
-    Type data; // произвольные пользовательские данные
+    ListNode* prev = nullptr; // указатель на предыдущий элемент списка, либо `nullptr` в случае начала списка
+    ListNode* next = nullptr;
+    ListNode* rand = nullptr; // указатель на произвольный элемент данного списка, либо `nullptr`
+    std::string data; // произвольные пользовательские данные
 };
 
-template<typename Type>
 class List
 {
 public:
     void Serialize(FILE* file)
     {
-        const size_t typeSize = sizeof(Type);
-        if (fwrite(&(typeSize), sizeof(size_t), 1, file));
-        else throw std::exception{ "Cant write size of type." };
+        std::map<ListNode*, unsigned> nodeKey;
+        unsigned ind = 0;
+
+
+        for (ListNode* curr = head;
+            curr != nullptr;
+            curr = curr->next, ind++)
+        nodeKey.insert(std::pair<ListNode*, unsigned> (curr, ind) );
+        //заполнение для узла его id
 
         if(fwrite(&(count), sizeof(size_t), 1, file));
         else throw std::exception{ "Cant write size of nodes." };
 
-        for (ListNode<Type>* that = head; that != nullptr; that = that->next)
+
+        unsigned i = 0;
+        for (ListNode* curr = head; curr != nullptr; curr = curr->next)
         {
-            if (fwrite(&(that->data), sizeof(Type), 1, file));
+            if (fwrite(&(curr->data), sizeof(std::string), 1, file));
             else throw std::exception{ "Cant write data in node." };
+
+            i = nodeKey[curr->rand];//нахождение по рандомному узлу его id и запись в фаил
+            if (fwrite(&(i), sizeof(unsigned), 1, file));
+            else throw std::exception{ "Cant write rand data in node." };
         }
-        for (ListNode<Type>* that = head; that != nullptr; that = that->next)
-        {
-            if (fwrite(&(that->rand), sizeof(ListNode<Type>*), 1, file));
-            else throw std::exception{ "Cant write rand in node." };
-        }
+        //запись узлов
+
+
     }; // сохранение списка в файл, файл открыт с помощью `fopen(path, "wb")`
     //-------------------------------------
     void Deserialize(FILE* file) 
     {
-        size_t sizeType = 0;
-
-        fread(&sizeType, sizeof(size_t), 1, file);
-        if (sizeType != sizeof(Type))
-            throw std::exception{ "Size of types diferrent." };
-        //проверка, чтобы в шаблоне стояли типы одинакового размера
+        clear();
 
         size_t sizeList = 0;
         fread(&sizeList, sizeof(size_t), 1, file);
@@ -119,37 +124,51 @@ public:
             throw std::exception{"Zero size."};
 
 
-        Type node;
-        ListNode<Type>* nodeptr;
+        std::string node;
+        ListNode* nodeptr;
+        unsigned nodeNumber;
+
+        std::vector<ListNode*> nodes;
+        std::vector<unsigned> indxRand;
+
+        nodes.reserve(sizeList);
+        indxRand.reserve(sizeList);
 
         for (size_t i = 0; i < sizeList; i++)
         {
             if (fread(&node, sizeof(node), 1, file))
             {
-                nodeptr = new ListNode<Type>(node);
-                append(nodeptr);
+                append(node);
+                nodes.push_back(tail);
             }
+            else
+            {
+                append(nullptr);
+                nodes.push_back(nullptr);
+            }//заполнение векторов и листа
 
+            if (fread(&nodeNumber, sizeof(unsigned), 1, file))
+                indxRand.push_back(nodeNumber);
+
+            else
+                indxRand.push_back(0);
         }//запись узлов
 
-        ListNode<Type>* pos;
+        ListNode* pos;
         nodeptr = head;
+        unsigned ind = 0;
 
-        for (size_t i = 0; i < sizeList; i++)
-        {
-            int test = sizeof(ListNode<Type>*);
-            if (fread(&pos, sizeof(ListNode<Type>*), 1, file))
-            {
-                nodeptr->rand = pos;
-                nodeptr = nodeptr->next;
-            }
-        }//запись рандомных членов
+        for (ListNode* curr = head;
+            curr != nullptr;
+            curr = curr->next, ind++)
+        curr->rand = nodes[indxRand[ind]];//по номеру из numsOfRand присваивается значение
+        //запись рандомных членов
 
      }; // восстановление списка из файла, файл открыт с помощью `fopen(path, "rb")`
     //-------------------------------------
     size_t size() const noexcept { return count; }
     //-------------------------------------
-    void append(ListNode<Type>* newNode) noexcept  
+    void append(ListNode* newNode) noexcept  
     {
         count++;
         if (head == nullptr)
@@ -165,9 +184,9 @@ public:
         tail = newNode;
     };
     //-------------------------------------
-    void append(const Type& value)
+    void append(std::string_view value)
     {
-        ListNode<Type>* newNode = new ListNode<Type>{ value };
+        ListNode* newNode = new ListNode{ value.data() };
         count++;
         if (head == nullptr)
         {
@@ -180,7 +199,7 @@ public:
         newNode->prev = tail;
         tail = newNode;
 
-        ListNode<Type>* newRand = head;
+        ListNode* newRand = head;
         size_t pos = std::rand() % size();
 
         while (pos--)
@@ -192,10 +211,10 @@ public:
     //-------------------------------------
     void showList()
     {
-        ListNode<Type>* tmp = head;
+        ListNode* tmp = head;
         while (tmp != tail)
         {
-            std::cout << tmp->data <<"("<< tmp->rand->data << ")" << "-";
+            std::cout << tmp->data <<"("<< tmp->rand->data << ")";
             tmp = tmp->next;
         }
         std::cout << tmp->data << "(" << tmp->rand->data << ")"<<"\n";
@@ -206,7 +225,7 @@ public:
         if (head == nullptr)
             return;
 
-        ListNode<Type>* tmp = head;
+        ListNode* tmp = head;
         while (head->next != nullptr)
         {
             head = head->next;
@@ -219,8 +238,8 @@ public:
     //-------------------------------------
     ~List() { clear(); }
 private:
-    ListNode<Type>* head = nullptr;
-    ListNode<Type>* tail = nullptr;
+    ListNode* head = nullptr;
+    ListNode* tail = nullptr;
     size_t count = 0;
 };
 
@@ -283,7 +302,7 @@ int main()
     /////////////////////////////Test 3
     const char* path = "./Test.bin";
     FILE* fin = fopen(path, "wb");
-    List<std::string> l;
+    List l;
     l.append("Hello");
     l.append(", ");
     l.append("my ");
@@ -302,7 +321,7 @@ int main()
         fclose(fin);
         std::cout << "\n";
         FILE* fout = fopen(path, "rb");
-        List<std::string> l1;
+        List l1;
 
         l1.Deserialize(fout);
         std::cout << "Deserialize:";
