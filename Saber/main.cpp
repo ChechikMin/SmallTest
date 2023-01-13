@@ -101,7 +101,7 @@ public:
         unsigned i = 0;
         for (ListNode* curr = head; curr != nullptr; curr = curr->next)
         {
-            if (fwrite(&(curr->data), sizeof(std::string), 1, file));
+            if (fwrite(curr->data.c_str(), sizeof(char*), 1, file));
             else throw std::exception{ "Cant write data in node." };
 
             i = nodeKey[curr->rand];//нахождение по рандомному узлу его id и запись в фаил
@@ -124,7 +124,7 @@ public:
             throw std::exception{"Zero size."};
 
 
-        std::string node;
+        char* node;
         ListNode* nodeptr;
         unsigned nodeNumber;
 
@@ -136,7 +136,7 @@ public:
 
         for (size_t i = 0; i < sizeList; i++)
         {
-            if (fread(&node, sizeof(node), 1, file))
+            if (fread(&node, sizeof(char*), 1, file))
             {
                 append(node);
                 nodes.push_back(tail);
@@ -184,7 +184,7 @@ public:
         tail = newNode;
     };
     //-------------------------------------
-    void append(std::string_view value)
+    void append(std::string value)
     {
         ListNode* newNode = new ListNode{ value.data() };
         count++;
@@ -199,15 +199,28 @@ public:
         newNode->prev = tail;
         tail = newNode;
 
-        ListNode* newRand = head;
-        size_t pos = std::rand() % size();
-
-        while (pos--)
-            newRand = newRand->next;
-
-        newNode->rand = newRand;
+    
 
     };
+    //-------------------------------------
+    void setRandNodes() 
+    {
+        ListNode* rand = head;
+
+
+        for (ListNode* curr = head;
+            curr != nullptr;
+            curr = curr->next)
+        {
+            size_t pos = std::rand() % size();
+            while (pos--)
+                rand = rand->next;
+            curr->rand = rand;
+            rand = head;
+        }
+
+        
+    }
     //-------------------------------------
     void showList()
     {
@@ -309,6 +322,7 @@ int main()
     l.append("name ");
     l.append("is ");
     l.append("Vladislav");
+    l.setRandNodes();
 
     std::cout << "Serialize:";
     l.showList();
